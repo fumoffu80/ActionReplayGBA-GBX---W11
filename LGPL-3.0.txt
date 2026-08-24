@@ -1,0 +1,13 @@
+GNU LESSER GENERAL PUBLIC LICENSE v3.0 OR LATER — NOTICE
+
+ActionReplayGBX v1.2.31 bundles wdi-simple.exe / libwdi solely for installing Microsoft WinUSB for the historical Action Replay GBA USB device.
+
+libwdi upstream project:
+https://github.com/pbatard/libwdi
+
+libwdi is distributed under the GNU Lesser General Public License version 3.0 or later (LGPL-3.0-or-later).
+
+Canonical license text:
+https://www.gnu.org/licenses/lgpl-3.0.txt
+
+The bundled binary is not modified by ActionReplayGBX. The build pins and verifies the exact binary before packaging. See THIRD-PARTY-NOTICES-Driver.txt for the exact source commit, size and cryptographic hashes used by this build.

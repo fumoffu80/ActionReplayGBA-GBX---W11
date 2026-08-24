@@ -1,0 +1,163 @@
+name: Windows CI v1.2.31.4
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare compiler and public v1.2.16 reference payload
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $framework="$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319"
+          if(-not(Test-Path (Join-Path $framework 'csc.exe'))){$framework="$env:WINDIR\Microsoft.NET\Framework\v4.0.30319"}
+          "CSC=$(Join-Path $framework 'csc.exe')" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "MANAGEMENT=$(Join-Path $framework 'System.Management.dll')" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "FORMS=$(Join-Path $framework 'System.Windows.Forms.dll')" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "DRAWING=$(Join-Path $framework 'System.Drawing.dll')" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          New-Item -ItemType Directory -Force ci-dist | Out-Null
+          $incoming=Join-Path $env:RUNNER_TEMP 'v1216-in'; $src=Join-Path $env:RUNNER_TEMP 'v1216-src'
+          New-Item -ItemType Directory -Force $incoming,$src | Out-Null
+          gh release download v1.2.16 --repo $env:GITHUB_REPOSITORY --pattern 'ActionReplayGBX_W11_Source_v1.2.16.zip' --dir $incoming
+          if($LASTEXITCODE -ne 0){throw 'v1.2.16 source download failed'}
+          Expand-Archive (Join-Path $incoming 'ActionReplayGBX_W11_Source_v1.2.16.zip') $src -Force
+          $datel=Get-ChildItem $src -Recurse -File -Filter 'PCDatabase-Datel.xpc' | Select-Object -First 1
+          if(-not $datel){throw 'Datel database missing'}
+          $payload=$datel.Directory.FullName
+          "ARGBX_V1216_PAYLOAD=$payload" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "ARGBX_DB_PAYLOAD=$payload" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          $icon=(Get-ChildItem $src -Recurse -File -Filter 'ActionReplayGBX.ico' | Select-Object -First 1).FullName
+          if(-not $icon){throw 'Reference icon missing'}
+          "ICON=$icon" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compile current v1.2.31.4 sources
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $dist=Join-Path $env:GITHUB_WORKSPACE 'ci-dist'
+          $exact=Join-Path $env:RUNNER_TEMP 'exact-build-sources-v12314'
+          New-Item -ItemType Directory -Force $exact | Out-Null
+
+          $modelSrc=(Get-Content .port-v1231\CodeModel.cs -Raw).Replace('v1.2.31")','v1.2.31.4")').Replace('1.2.31.0','1.2.31.4')
+          $modelTmp=Join-Path $exact 'CodeModel-v1.2.31.4-built.cs'; Set-Content $modelTmp $modelSrc -Encoding utf8
+          & $env:CSC /nologo /target:library /platform:anycpu /optimize+ "/out:$dist\ActionReplayGBX.Model_v1.2.31.4.dll" $modelTmp
+          if($LASTEXITCODE -ne 0){throw 'Model compile failed'}
+
+          $engineSrc=(Get-Content .port-v1229\engine-v1229.cs -Raw).Replace('ActionReplayGBX v1.2.29 CSharp WinUSB engine','ActionReplayGBX v1.2.31.4 CSharp WinUSB engine').Replace('1.2.29.0','1.2.31.4').Replace('1.2.29-port','1.2.31.4-hardware-validated-protocol')
+          $engineTmp=Join-Path $exact 'engine-v1.2.31.4-built.cs'; Set-Content $engineTmp $engineSrc -Encoding utf8
+          & $env:CSC /nologo /target:exe /platform:x64 /optimize+ "/win32icon:$env:ICON" "/out:$dist\argbx-engine_v1.2.31.4.exe" $engineTmp
+          if($LASTEXITCODE -ne 0){throw 'Engine compile failed'}
+
+          $driverSrc=(Get-Content .port-v1231\driver-v12311.cs -Raw).Replace('1.2.31.1','1.2.31.4')
+          $driverTmp=Join-Path $exact 'driver-v1.2.31.4-built.cs'; Set-Content $driverTmp $driverSrc -Encoding utf8
+          & $env:CSC /nologo /target:exe /main:DriverProgram12311 /platform:x64 /optimize+ "/win32icon:$env:ICON" "/reference:$env:MANAGEMENT" "/out:$dist\ActionReplayGBX-Driver_v1.2.31.4.exe" $driverTmp
+          if($LASTEXITCODE -ne 0){throw 'Driver compile failed'}
+
+          $guiSrc=(Get-Content .port-v1231\gui-v12312.cs -Raw).Replace('1.2.31.2','1.2.31.4')
+          $driverRepairPattern='ProcessResult r = await RunProcess\(driverPath, "--apply", true\);\s*AppendLog\(r.Output\);\s*bool ok = false;'
+          $driverRepairReplacement=@'
+          ProcessResult r = await RunProcess(driverPath, "--apply", true);
+          AppendLog(r.Output);
+          if (r.ExitCode != 0)
+          {
+              SetBusy(false, T("Pilote non appliqué", "Driver not applied"));
+              RefreshWmi(); RefreshDeviceUi(); RefreshBottomStatus();
+              MessageBox.Show(this,
+                  String.IsNullOrWhiteSpace(r.Output)
+                      ? T("L'installation / réparation du pilote a été annulée ou a échoué.", "Driver installation / repair was cancelled or failed.")
+                      : FriendlyFailure(r.Output),
+                  T("Pilote", "Driver"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+              return;
+          }
+          bool ok = false;
+          '@
+          $patched=[regex]::Replace($guiSrc,$driverRepairPattern,$driverRepairReplacement,1)
+          if($patched -eq $guiSrc){throw 'Driver repair patch did not match source'}
+          $guiSrc=$patched
+          $recoverOld='ParseInfo(rr.Output); deviceConnected = true; autoRecoveryStage = 0; RefreshDeviceUi(); RequestBoxArt(); return true;'
+          $recoverNew='ParseInfo(rr.Output); deviceConnected = true; autoRecoveryStage = 0; RefreshDeviceUi(); RefreshBottomStatus(); SetBusy(false, T("Action Replay connecté", "Action Replay connected")); RequestBoxArt(); return true;'
+          if(-not $guiSrc.Contains($recoverOld)){throw 'Pipe recovery patch did not match source'}
+          $guiSrc=$guiSrc.Replace($recoverOld,$recoverNew)
+          $guiTmp=Join-Path $exact 'gui-v1.2.31.4-built.cs'; Set-Content $guiTmp $guiSrc -Encoding utf8
+
+          & $env:CSC /nologo /target:winexe /main:BootstrapProgram12314 /platform:x64 /optimize+ "/win32icon:$env:ICON" "/reference:$env:MANAGEMENT" "/reference:$env:FORMS" "/reference:$env:DRAWING" "/reference:$dist\ActionReplayGBX.Model_v1.2.31.4.dll" "/out:$dist\ActionReplayGBX_v1.2.31.4.exe" $guiTmp .port-v1231\Localization.cs .port-v1231\Bootstrap.cs .port-v1231\BootstrapV12314.cs .port-v1231\V1216VisualParity.cs .port-v1231\V12314BoxArtFix.cs
+          if($LASTEXITCODE -ne 0){throw 'GUI compile failed'}
+
+      - name: Model and language tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $p=Start-Process .\ci-dist\ActionReplayGBX_v1.2.31.4.exe -ArgumentList '--self-test-language' -Wait -PassThru
+          if($p.ExitCode -ne 0){throw "Language self-test failed: $($p.ExitCode)"}
+          & $env:CSC /nologo /target:exe /platform:anycpu /optimize+ /reference:.\ci-dist\ActionReplayGBX.Model_v1.2.31.4.dll /out:.\ci-dist\ModelTests.exe .port-v1231\ModelTests.cs
+          if($LASTEXITCODE -ne 0){throw 'Model test compile failed'}
+          & .\ci-dist\ModelTests.exe
+          if($LASTEXITCODE -ne 0){throw 'Model tests failed'}
+
+      - name: Compile visual and box-art probes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $exact=Join-Path $env:RUNNER_TEMP 'exact-build-sources-v12314'
+          $visualTest=(Get-Content .port-v1231\VisualParityTests.cs -Raw).Replace('1.2.31.3','1.2.31.4')
+          $visualTmp=Join-Path $env:RUNNER_TEMP 'VisualParityTests-v12314.cs'; Set-Content $visualTmp $visualTest -Encoding utf8
+          & $env:CSC /nologo /target:exe /main:VisualParityTests /platform:x64 /optimize+ "/reference:$env:MANAGEMENT" "/reference:$env:FORMS" "/reference:$env:DRAWING" /reference:.\ci-dist\ActionReplayGBX.Model_v1.2.31.4.dll /out:.\ci-dist\VisualParityTests.exe (Join-Path $exact 'gui-v1.2.31.4-built.cs') .port-v1231\Localization.cs .port-v1231\Bootstrap.cs .port-v1231\V1216VisualParity.cs $visualTmp
+          if($LASTEXITCODE -ne 0){throw 'Visual parity test compile failed'}
+
+          & $env:CSC /nologo /target:exe /main:BoxArtTests /platform:x64 /optimize+ "/reference:$env:MANAGEMENT" "/reference:$env:FORMS" "/reference:$env:DRAWING" /reference:.\ci-dist\ActionReplayGBX.Model_v1.2.31.4.dll /out:.\ci-dist\BoxArtTests.exe (Join-Path $exact 'gui-v1.2.31.4-built.cs') .port-v1231\Localization.cs .port-v1231\Bootstrap.cs .port-v1231\V1216VisualParity.cs .port-v1231\V12314BoxArtFix.cs .port-v1231\BoxArtTests.cs
+          if($LASTEXITCODE -ne 0){throw 'Box-art test compile failed'}
+
+      - name: Visual parity runtime probe
+        shell: pwsh
+        continue-on-error: true
+        timeout-minutes: 1
+        run: |
+          & .\ci-dist\VisualParityTests.exe .\ci-dist\ActionReplayGBX_UI_v1.2.31.4.png
+          if($LASTEXITCODE -ne 0){throw 'Visual parity runtime probe failed'}
+
+      - name: Real box-art network probe
+        shell: pwsh
+        continue-on-error: true
+        timeout-minutes: 1
+        run: |
+          & .\ci-dist\BoxArtTests.exe .\ci-dist\BPRE-boxart-selftest.png
+          if($LASTEXITCODE -ne 0){throw 'External GameDB/Libretro box-art probe failed'}
+
+      - name: Synthetic firmware validation test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $fixture=Join-Path $env:RUNNER_TEMP 'synthetic-classic-firmware.bin'
+          $bytes=New-Object byte[] 0x20000
+          $bytes[0]=0x00; $bytes[1]=0x00; $bytes[2]=0x00; $bytes[3]=0xEA
+          $markers=@(
+            @('Waiting For USB Command',0x100),
+            @('USB Working',0x200),
+            @('USB ERROR',0x300)
+          )
+          foreach($item in $markers){
+            $b=[Text.Encoding]::ASCII.GetBytes([string]$item[0])
+            [Array]::Copy($b,0,$bytes,[int]$item[1],$b.Length)
+          }
+          [IO.File]::WriteAllBytes($fixture,$bytes)
+          & .\ci-dist\argbx-engine_v1.2.31.4.exe validate-firmware $fixture
+          if($LASTEXITCODE -ne 0){throw 'Synthetic firmware validator test failed'}
+
+          $empty=Join-Path $env:RUNNER_TEMP 'empty-codes.bin'
+          [IO.File]::WriteAllBytes($empty,[byte[]](0,0,0,0,0,0,0,0))
+          & .\ci-dist\argbx-engine_v1.2.31.4.exe validate-codes $empty
+          if($LASTEXITCODE -ne 0){throw 'Code validator test failed'}

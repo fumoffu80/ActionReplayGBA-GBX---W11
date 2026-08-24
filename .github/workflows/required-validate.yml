@@ -1,0 +1,47 @@
+name: Required validate
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate public tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .port-v1229/engine-v1229.cs
+          test -f .port-v1231/CodeModel.cs
+          test -f .github/workflows/ci-windows.yml
+          test -f .gitignore
+          test -f SECURITY.md
+          test -f PUBLIC-SANITIZATION.md
+          test ! -e "ActionReplayGBX_3_3_EU_FRA.exe"
+          test ! -e "Firmware ⚠ Dump experimental/ActionReplayGBX Firmware v4.0 EU FRA.bin"
+          test ! -e "Firmware ⚠ Dump experimental/ActionReplayGBX Firmware v4.0 EU FRA.gsu"
+          echo "Public tree validation passed."
+
+      - name: Publish required validate status
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          MERGE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for sha in "$HEAD_SHA" "$MERGE_SHA"; do
+            [ -n "$sha" ] || continue
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
+              -f state=success \
+              -f context=validate \
+              -f description='Public tree validation passed'
+          done

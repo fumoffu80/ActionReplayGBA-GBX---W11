@@ -1,0 +1,31 @@
+# Private hardware dumps / backups
+Firmware ⚠ Dump experimental/
+Firmware/
+*firmware-backup*.bin
+*flash-backup*.bin
+*flash-dump*.bin
+*.sav
+*.srm
+
+# Runtime data / caches / logs
+BoxArt/
+*.log
+*.part
+dist-*/
+exact-build-sources-*/
+
+# Local development
+.vs/
+bin/
+obj/
+*.user
+*.suo
+.env
+.env.*
+
+# Signing material and private keys must never be committed
+*.pfx
+*.p12
+*.pem
+*.key
+*.snk
