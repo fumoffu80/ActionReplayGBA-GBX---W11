@@ -913,3 +913,5 @@ Ce dépôt documente des protocoles et comportements nécessaires à l’interop
 Les firmwares Datel propriétaires ne sont pas destinés à être redistribués ici sans base juridique appropriée. Le dump v4.0 utilisé pour la recherche reste **privé** et n’est représenté que par ses empreintes et les observations techniques dérivées.
 
 Les marques **Action Replay**, **Datel**, **CodeJunkies**, **Nintendo**, **Game Boy Advance**, ainsi que les logiciels/firmwares propriétaires correspondants appartiennent à leurs propriétaires respectifs.
+
+Test CI
