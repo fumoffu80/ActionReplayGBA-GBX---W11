@@ -914,4 +914,3 @@ Les firmwares Datel propriétaires ne sont pas destinés à être redistribués 
 
 Les marques **Action Replay**, **Datel**, **CodeJunkies**, **Nintendo**, **Game Boy Advance**, ainsi que les logiciels/firmwares propriétaires correspondants appartiennent à leurs propriétaires respectifs.
 
-Test CI-WINDOWS
