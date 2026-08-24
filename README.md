@@ -9,7 +9,7 @@
 Modern **Windows 11 x64** manager for Datel Action Replay GBA/GBX devices featuring the legacy USB interface. An independent **interoperability, preservation, and reverse-engineering** project, built around **Microsoft WinUSB** and notably inspired by [`kirschju/gameshark-gba-tooling`](https://github.com/kirschju/gameshark-gba-tooling).
 
 > **Latest project version: v1.2.31.4**
-> **Release:** [ActionReplayGBX v1.2.31.4](https://github.com/fumoffu80/ActionReplayGBX---W11/releases/tag/v1.2.31.4)
+> **Release:** [ActionReplayGBX v1.2.31.4](https://github.com/fumoffu80/ActionReplayGBA-GBX---W11/releases/tag/v1.2.31.4)
 > This project is not affiliated with **Datel**, **CodeJunkies**, or **Nintendo**.
 
 ---
@@ -18,7 +18,7 @@ Gestionnaire moderne **Windows 11 x64** pour les Action Replay GBA/GBX Datel éq
 
 > **Version la plus récente du projet : v1.2.31.4**
 >
-> **Release :** [ActionReplayGBX v1.2.31.4](https://github.com/fumoffu80/ActionReplayGBX---W11/releases/tag/v1.2.31.4)
+> **Release :** [ActionReplayGBX v1.2.31.4](https://github.com/fumoffu80/ActionReplayGBA-GBX---W11/releases/tag/v1.2.31.4)
 >
 > Le projet n’est affilié ni à **Datel**, ni à **CodeJunkies**, ni à **Nintendo**.
 
@@ -35,7 +35,7 @@ Release **v1.2.31.4** provides four separate files:
 - `ActionReplayGBX Source v1.2.31.4.zip` — release sources, including the exact C# sources compiled under `exact-build-sources-v12314`;
 - `ActionReplayGBX SHA256 v1.2.31.4.txt` — SHA-256 checksums.
 
-➡️ **[Download ActionReplayGBX v1.2.31.4](https://github.com/fumoffu80/ActionReplayGBX---W11/releases/tag/v1.2.31.4)**
+➡️ **[Download ActionReplayGBX v1.2.31.4](https://github.com/fumoffu80/ActionReplayGBA-GBX---W11/releases/tag/v1.2.31.4)**
 
 > The executables are not Authenticode-signed yet. Some antivirus engines may therefore report heuristic detections, especially because the software performs WinUSB, driver/UAC and PnP recovery operations. Verify the published SHA-256 checksums and source code when needed.
 
@@ -381,7 +381,7 @@ La release **v1.2.31.4** fournit quatre fichiers distincts :
 - `ActionReplayGBX Source v1.2.31.4.zip` — sources de la release, avec les sources C# exactes réellement compilées dans `exact-build-sources-v12314` ;
 - `ActionReplayGBX SHA256 v1.2.31.4.txt` — empreintes SHA-256 des livrables.
 
-➡️ **[Télécharger ActionReplayGBX v1.2.31.4](https://github.com/fumoffu80/ActionReplayGBX---W11/releases/tag/v1.2.31.4)**
+➡️ **[Télécharger ActionReplayGBX v1.2.31.4](https://github.com/fumoffu80/ActionReplayGBA-GBX---W11/releases/tag/v1.2.31.4)**
 
 > Les exécutables ne sont pas encore signés Authenticode. Certains moteurs antivirus peuvent donc produire des détections heuristiques, notamment à cause des fonctions WinUSB, pilote/UAC et récupération PnP. Vérifiez les SHA-256 publiés et les sources si nécessaire.
 
